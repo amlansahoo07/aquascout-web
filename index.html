@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Quality Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        #map {
+            height: 400px;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Water Quality Monitoring System</h1>
+
+        <div class="row">
+            <!-- Map Container - Left Column -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Monitoring Locations</h5>
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Container - Right Column -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Parameters Overview</h5>
+                        <canvas id="parametersChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Quality Scores</h5>
+                        <canvas id="qualityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let map;
+        let parametersChart;
+        let qualityChart;
+
+        async function initializeDashboard() {
+            // Load data
+            const response = await fetch('data.json');
+            const data = await response.json();
+
+            // Initialize map
+            map = L.map('map').setView([53.0, -2.0], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            // Add markers for each location
+            Object.entries(data.locations).forEach(([name, info]) => {
+                const marker = L.marker(info.coordinates)
+                    .addTo(map)
+                    .bindPopup(`<b>${name}</b><br>${info.type}<br>${info.service_area}`);
+
+                marker.on('click', () => updateCharts(name, data));
+            });
+
+            // Initialize charts with first location's data
+            const firstLocation = Object.keys(data.locations)[0];
+            updateCharts(firstLocation, data);
+        }
+
+        function updateCharts(locationName, data) {
+            const measurements = data.measurements[locationName];
+            const timestamps = data.timestamps.map(t => new Date(t).toLocaleDateString());
+
+            // Add generateForecast function
+            function generateForecast(values) {
+                const lastValue = values[values.length - 1];
+                const variance = 0.1; // 10% variance
+                return [
+                    lastValue + (Math.random() - 0.5) * lastValue * variance,
+                    lastValue + (Math.random() - 0.5) * lastValue * variance
+                ];
+            }
+
+            // Generate forecast data for each parameter
+            const forecastData = {
+                'pH': generateForecast(measurements.pH.values),
+                'Dissolved Oxygen': generateForecast(measurements['Dissolved Oxygen'].values),
+                'Free Chlorine': generateForecast(measurements['Free Chlorine'].values)
+            };
+
+            // Update parameters chart
+            if (parametersChart) parametersChart.destroy();
+            const ctx1 = document.getElementById('parametersChart').getContext('2d');
+            parametersChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: [...timestamps, 'Next Week', 'In 2 Weeks'],
+                    datasets: [
+                        {
+                            label: 'pH',
+                            data: [...measurements.pH.values, ...forecastData.pH],
+                            borderColor: 'rgb(75, 192, 192)',
+                            segment: {
+                                borderDash: ctx => ctx.p0.parsed.x >= timestamps.length - 1 ? [6, 6] : undefined
+                            },
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Dissolved Oxygen',
+                            data: [...measurements['Dissolved Oxygen'].values, ...forecastData['Dissolved Oxygen']],
+                            borderColor: 'rgb(255, 99, 132)',
+                            segment: {
+                                borderDash: ctx => ctx.p0.parsed.x >= timestamps.length - 1 ? [6, 6] : undefined
+                            },
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Free Chlorine',
+                            data: [...measurements['Free Chlorine'].values, ...forecastData['Free Chlorine']],
+                            borderColor: 'rgb(54, 162, 235)',
+                            segment: {
+                                borderDash: ctx => ctx.p0.parsed.x >= timestamps.length - 1 ? [6, 6] : undefined
+                            },
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Parameters & Forecasts for ${locationName}`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (context) => {
+                                    const idx = context[0].dataIndex;
+                                    return idx >= timestamps.length ?
+                                        'FORECAST: ' + context[0].label :
+                                        context[0].label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update quality scores chart with thresholds
+            if (qualityChart) qualityChart.destroy();
+            const ctx2 = document.getElementById('qualityChart').getContext('2d');
+
+            // Get quality scores and thresholds
+            const qualityScores = Object.values(measurements).map(m => m.quality_score);
+            const warningThreshold = data.alerts.notification_thresholds.warning;
+            const criticalThreshold = data.alerts.notification_thresholds.critical;
+
+            qualityChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(measurements),
+                    datasets: [{
+                        label: 'Quality Score',
+                        data: qualityScores,
+                        backgroundColor: 'rgba(54, 162, 235, 0.75)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Quality Scores for ${locationName}`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const score = context.raw;
+                                    let status = score >= warningThreshold ? 'Good' :
+                                        score >= criticalThreshold ? 'Warning' : 'Critical';
+                                    return `Quality Score: ${score.toFixed(2)} (${status})`;
+                                }
+                            }
+                        },
+                        backgroundZones: {
+                            id: 'backgroundZones'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            grid: {
+                                drawBorder: false
+                            },
+                            ticks: {
+                                stepSize: 0.2
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'backgroundZones',
+                    beforeDraw: (chart) => {
+                        const { ctx, chartArea, scales: { y } } = chart;
+                        if (!chartArea) return;
+
+                        // Draw background zones
+                        // Critical zone (red)
+                        ctx.fillStyle = 'rgba(255, 99, 132, 0.25)';
+                        ctx.fillRect(
+                            chartArea.left,
+                            y.getPixelForValue(0),
+                            chartArea.right - chartArea.left,
+                            y.getPixelForValue(criticalThreshold) - y.getPixelForValue(0)
+                        );
+
+                        // Warning zone (yellow)
+                        ctx.fillStyle = 'rgba(255, 205, 86, 0.25)';
+                        ctx.fillRect(
+                            chartArea.left,
+                            y.getPixelForValue(criticalThreshold),
+                            chartArea.right - chartArea.left,
+                            y.getPixelForValue(warningThreshold) - y.getPixelForValue(criticalThreshold)
+                        );
+
+                        // Good zone (green)
+                        ctx.fillStyle = 'rgba(75, 192, 192, 0.25)';
+                        ctx.fillRect(
+                            chartArea.left,
+                            y.getPixelForValue(warningThreshold),
+                            chartArea.right - chartArea.left,
+                            y.getPixelForValue(1) - y.getPixelForValue(warningThreshold)
+                        );
+                    }
+                }]
+            });
+        }
+
+        // Initialize dashboard when page loads
+        initializeDashboard().catch(console.error);
+    </script>
+</body>
+
+</html>

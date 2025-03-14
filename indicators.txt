@@ -1,0 +1,17 @@
+// Free Chlorine
+// Total Chlorine
+// Cyanuric acid
+// Hardness
+// pH
+// Total alkalinity
+// Negative control
+// Fluoride
+// Mercury
+// Copper
+// Lead
+// Chromium
+// Iron
+// Nitrite
+// Nitrate
+// Ammonium
+// Dissolved Oxygen
