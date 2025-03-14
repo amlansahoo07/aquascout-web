@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Water Quality Dashboard</title>
+    <title>Aquascout Analytics</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -13,39 +13,74 @@
 
     <style>
         #map {
-            height: 400px;
+            height: 400px;  /* Increased height for better visibility */
         }
-
         .chart-container {
             margin-top: 20px;
+        }
+        .alert {
+            margin-bottom: 0.5rem;
+        }
+        .card {
+            height: 100%;
         }
     </style>
 </head>
 
 <body>
     <div class="container mt-4">
-        <h1 class="text-center mb-4">Water Quality Monitoring System</h1>
-
-        <div class="row">
-            <!-- Map Container - Left Column -->
-            <div class="col-md-6">
-                <div class="card">
+        <h1 class="text-center mb-4">Water Quality Dashboard</h1>
+        
+        <!-- Top Row: Map and Alert Summary -->
+        <div class="row mb-4">
+            <!-- Map Container -->
+            <div class="col-md-8">
+                <div class="card h-100">
                     <div class="card-body">
                         <h5 class="card-title">Monitoring Locations</h5>
                         <div id="map"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- Charts Container - Right Column -->
+    
+            <!-- Alert Summary -->
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Alert Summary</h5>
+                        <div id="alertSummary">
+                            <div class="alert alert-danger mb-2">
+                                <h6 class="alert-heading">Critical</h6>
+                                <div id="criticalAlerts"></div>
+                            </div>
+                            <div class="alert alert-warning mb-2">
+                                <h6 class="alert-heading">Warning</h6>
+                                <div id="warningAlerts"></div>
+                            </div>
+                            <div class="alert alert-success mb-2">
+                                <h6 class="alert-heading">Good</h6>
+                                <div id="goodAlerts"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Bottom Row: Charts -->
+        <div class="row">
+            <!-- Parameters Overview -->
             <div class="col-md-6">
-                <div class="card mb-4">
+                <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Parameters Overview</h5>
                         <canvas id="parametersChart"></canvas>
                     </div>
                 </div>
-
+            </div>
+    
+            <!-- Quality Scores -->
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Quality Scores</h5>
@@ -85,6 +120,9 @@
             // Initialize charts with first location's data
             const firstLocation = Object.keys(data.locations)[0];
             updateCharts(firstLocation, data);
+
+            // Add this line to update the alert summary
+            updateAlertSummary(data);
         }
 
         function updateCharts(locationName, data) {
@@ -257,6 +295,70 @@
                     }
                 }]
             });
+        }
+
+        // Add this function after the updateCharts function
+
+        function updateAlertSummary(data) {
+            const criticalLocations = [];
+            const warningLocations = [];
+            const goodLocations = [];
+
+            // Analyze each location
+            Object.entries(data.measurements).forEach(([location, params]) => {
+                const scores = Object.values(params).map(p => p.quality_score);
+                const minScore = Math.min(...scores);
+                
+                if (minScore < data.alerts.notification_thresholds.critical) {
+                    criticalLocations.push({
+                        name: location,
+                        score: minScore,
+                        params: Object.entries(params)
+                            .filter(([_, p]) => p.quality_score < data.alerts.notification_thresholds.critical)
+                            .map(([name, _]) => name)
+                    });
+                } else if (minScore < data.alerts.notification_thresholds.warning) {
+                    warningLocations.push({
+                        name: location,
+                        score: minScore,
+                        params: Object.entries(params)
+                            .filter(([_, p]) => p.quality_score < data.alerts.notification_thresholds.warning)
+                            .map(([name, _]) => name)
+                    });
+                } else {
+                    goodLocations.push({
+                        name: location,
+                        score: minScore
+                    });
+                }
+            });
+
+            // Update the UI
+            document.getElementById('criticalAlerts').innerHTML = criticalLocations.length ? 
+                criticalLocations.map(loc => `
+                    <div class="small mb-1">
+                        <strong>${loc.name}</strong><br>
+                        Parameters: ${loc.params.join(', ')}
+                    </div>
+                `).join('') : 
+                '<small>No critical alerts</small>';
+
+            document.getElementById('warningAlerts').innerHTML = warningLocations.length ?
+                warningLocations.map(loc => `
+                    <div class="small mb-1">
+                        <strong>${loc.name}</strong><br>
+                        Parameters: ${loc.params.join(', ')}
+                    </div>
+                `).join('') :
+                '<small>No warnings</small>';
+
+            document.getElementById('goodAlerts').innerHTML = goodLocations.length ?
+                goodLocations.map(loc => `
+                    <div class="small mb-1">
+                        <strong>${loc.name}</strong>
+                    </div>
+                `).join('') :
+                '<small>No locations</small>';
         }
 
         // Initialize dashboard when page loads

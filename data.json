@@ -9,13 +9,31 @@
             "type": "reservoir",
             "coordinates": [53.6642996, -0.799814],
             "capacity_gallons": 1000000,
-            "service_area": "North District"
+            "service_area": "Northeast District"
         },
         "Location B": {
             "type": "treatment_plant",
             "coordinates": [51.505428, -0.0762029],
             "capacity_gallons": 2000000,
-            "service_area": "South District"
+            "service_area": "Southeast District"
+        },
+        "Location C": {
+            "type": "reservoir",
+            "coordinates": [52.4862, -1.8904],
+            "capacity_gallons": 1500000,
+            "service_area": "Central District"
+        },
+        "Location D": {
+            "type": "treatment_plant",
+            "coordinates": [53.4808, -2.2426],
+            "capacity_gallons": 1800000,
+            "service_area": "Northwest District"
+        },
+        "Location E": {
+            "type": "reservoir",
+            "coordinates": [51.4545, -2.5879],
+            "capacity_gallons": 1200000,
+            "service_area": "Southwest District"
         } 
     },
     "parameters": {
@@ -79,6 +97,48 @@
             "Dissolved Oxygen": {
                 "values": [7.5, 7.3, 7.4, 7.2, 7.1, 7.0],
                 "quality_score": 0.53
+            }
+        },
+        "Location C": {
+            "Free Chlorine": {
+                "values": [1.2, 1.1, 1.0, 1.1, 1.2, 1.1],
+                "quality_score": 0.92
+            },
+            "pH": {
+                "values": [7.1, 7.2, 7.2, 7.1, 7.2, 7.1],
+                "quality_score": 0.89
+            },
+            "Dissolved Oxygen": {
+                "values": [7.4, 7.5, 7.3, 7.4, 7.5, 7.4],
+                "quality_score": 0.88
+            }
+        },
+        "Location D": {
+            "Free Chlorine": {
+                "values": [0.7, 0.6, 0.8, 0.7, 0.6, 0.7],
+                "quality_score": 0.75
+            },
+            "pH": {
+                "values": [8.1, 8.2, 8.0, 8.1, 8.2, 8.3],
+                "quality_score": 0.72
+            },
+            "Dissolved Oxygen": {
+                "values": [6.5, 6.4, 6.3, 6.4, 6.5, 6.4],
+                "quality_score": 0.78
+            }
+        },
+        "Location E": {
+            "Free Chlorine": {
+                "values": [0.4, 0.5, 0.4, 0.3, 0.4, 0.3],
+                "quality_score": 0.45
+            },
+            "pH": {
+                "values": [8.7, 8.6, 8.8, 8.7, 8.9, 8.8],
+                "quality_score": 0.52
+            },
+            "Dissolved Oxygen": {
+                "values": [5.8, 5.7, 5.6, 5.5, 5.4, 5.3],
+                "quality_score": 0.58
             }
         }
     },
